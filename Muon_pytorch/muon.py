@@ -1,11 +1,11 @@
 import torch
-import torco.distributed as dist
+import torch.distributed as dist
 
-@torch.compile
+
 def newtonschulz5(G, steps):
     assert len(G.shape) == 2
     a, b, c = (3.4445, -4.7750, 2.0315)
-    X = G.bfloat16()
+    X = G
     if G.size(0) > G.size(1):
         X = X.T
 
@@ -26,7 +26,7 @@ class Muon(torch.optim.Optimizer):
         self, 
         muon_params, 
         lr=0.02, 
-        momuntum=0.95, 
+        momentum=0.95, 
         nesterov=True,
         ns_steps=6,
         adamw_params=None,
@@ -35,7 +35,7 @@ class Muon(torch.optim.Optimizer):
         adamw_eps=1e-8,
         adamw_wd=0,
     ):
-        defaults = dict(lr=lr, momuntum=momuntum, nesterov=nesterov, ns_steps=ns_steps,
+        defaults = dict(lr=lr, momentum=momentum, nesterov=nesterov, ns_steps=ns_steps,
                         adamw_lr_ratio=adamw_lr/lr, adamw_betas=adamw_betas,
                         adamw_eps=adamw_eps, adamw_wd=adamw_wd)
         
@@ -44,13 +44,11 @@ class Muon(torch.optim.Optimizer):
         params.extend(adamw_params)
         super().__init__(params, defaults)
 
-        for p in muon_params:
+        for p in params:
             if p.ndim >= 2:
                 self.state[p]['use_muon'] = True
             else:
                 self.state[p]['use_muon'] = False
-        for p in adamw_params:
-            self.state[p]['use_muon'] = False
         
 
     def step(self, closure=None):
@@ -124,5 +122,5 @@ class Muon(torch.optim.Optimizer):
                 scale = bias_correction1 / bias_correction2**0.5
                 p.data.mul_(1 - lr * weight_decay)
                 p.data.add_(g, alpha=-lr/scale)
-                
+
         return loss
